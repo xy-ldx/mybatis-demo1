@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.mapper.StudentMapper">
+    <resultMap id="ResultMap" type="com.example.entity.Result"/>
+    <resultMap id="RecordsCount" type="integer"/>
+    <select id="findResultByInfo" resultMap="ResultMap,RecordsCount"
+            parameterType="com.example.entity.Select" resultType="java.util.List">
+        SELECT SQL_CALC_FOUND_ROWS
+        `sys_student`.`id` AS `id`,
+        `sys_student`.`stuName` AS `stuName`,
+        `sys_student`.`stuAge` AS `stuAge`,
+        `sys_student`.`graduateDate` AS `graduateDate`,
+        `sys_faculty`.`facultyName` AS `facultyName`
+        FROM
+        ( `sys_faculty` JOIN `sys_student` )
+        WHERE
+        (
+        `sys_faculty`.`id` = `sys_student`.`facultyId`)
+        -- 标题模糊搜索
+        <if test="stuName != null">
+            AND `sys_student`.`stuName` LIKE CONCAT('%',#{stuName},'%')
+        </if>
+        -- &gt;=是大于等于
+        <if test="minAge!=null">
+            AND `sys_student`.`stuAge`&gt;= #{minAge}
+        </if>
+        -- &lt;=是小于等于
+        <if test="maxAge!=null">
+            AND `sys_student`.`stuAge` &lt;= #{maxAge}
+        </if>
+
+        -- 没毕业 毕业时间大于现在
+        <if test="isGraduate  != null and isGraduate ==false">
+            AND `sys_student`.`graduateDate`&gt;=NOW()
+        </if>
+
+        -- 毕业了 毕业时间小于现在
+        <if test="isGraduate  != null and isGraduate ==true">
+            AND `sys_student`.`graduateDate`&lt;=NOW()
+        </if>
+        <if test="orderBy!=null and orderBy!=''">
+
+            <if test="highToLow ==null or highToLow ==false">
+                ORDER BY ${orderBy} ASC,`sys_student`.`id` ASC -- 加id ASC是为了保证分页结果的唯一性 mysql排序是不稳定的 https://www.jianshu.com/p/1e8a19738ae4
+            </if>
+            <if test="highToLow !=null and highToLow ==true">
+                ORDER BY ${orderBy} DESC,`sys_student`.`id` ASC
+            </if>
+        </if>
+        -- 分页查询
+        LIMIT
+        #{pageNumber},#{pageSize};
+        -- 接着查询符合条件个数
+        SELECT FOUND_ROWS();
+    </select>
+
+    <insert id="insertBatch" useGeneratedKeys="true" keyProperty="id" parameterType="com.example.entity.Student">
+        insert into sys_student (id, stuName, stuAge,
+        graduateDate,facultyId)
+        values
+        <foreach collection="list" item="item" index="index" separator=",">
+            (#{item.id,jdbcType=BIGINT}, #{item.stuName,jdbcType=VARCHAR}, #{item.stuAge,jdbcType=INTEGER},
+            #{item.graduateDate,jdbcType=TIMESTAMP},#{item.facultyId,jdbcType=BIGINT})
+        </foreach>
+    </insert>
+
+    <select id="protest1" statementType="CALLABLE" resultType="hashMap">
+        call pro_test();
+    </select>
+
+    <select id="protest2" statementType="CALLABLE" resultMap="ResultMap"  resultType="java.util.List">
+        call pro_test2();
+    </select>
+</mapper>
